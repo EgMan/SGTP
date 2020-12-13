@@ -1,5 +1,5 @@
 ﻿// This class is a convenience class for data conversion to/from byte data
-// Taken with permission from https://github.com/tom-weiland/tcp-udp-networking/blob/tutorial-part2/GameServer/GameServer/Packet.cs
+// Adapted with permission from https://github.com/tom-weiland/tcp-udp-networking/blob/tutorial-part2/GameServer/GameServer/Packet.cs
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -9,13 +9,15 @@ namespace Client
     /// <summary>Sent from server to client.</summary>
     public enum ServerPackets
     {
-        welcome = 1
+        welcome = 1,
+        udpTest,
     }
 
     /// <summary>Sent from client to server.</summary>
     public enum ClientPackets
     {
-        welcomeReceived = 1
+        welcomeReceived = 1,
+        udpTestAck,
     }
 
     public class Packet : IDisposable

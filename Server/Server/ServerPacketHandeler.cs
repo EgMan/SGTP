@@ -20,5 +20,10 @@ namespace Server
             }
             // todo: proceed into game
         }
+        public static void UDPTestAck(int client, Packet packet)
+        {
+            string msg = packet.ReadString();
+            Console.WriteLine($"{Server.clients[client].tcp.socket.Client.RemoteEndPoint} sent back the message {msg}");
+        }
     }
 }

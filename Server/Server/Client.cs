@@ -15,12 +15,49 @@ namespace Server
 
         public int id;
         public Client.TCP tcp;
+        public Client.UDP udp;
 
 
         public Client(int clientId)
         {
             id = clientId;
             tcp = new TCP(id);
+            udp = new UDP(id);
+        }
+        public class UDP
+        {
+            public IPEndPoint endPoint;
+            private int id;
+
+            public UDP(int id)
+            {
+                this.id = id;
+            }
+
+            public void Connect(IPEndPoint endPoint)
+            {
+                this.endPoint = endPoint;
+
+                ServerPacketSender.UDPTest(id);
+            }
+
+            public void SendData(Packet packet)
+            {
+                Server.SendUDPData(endPoint, packet);
+            }
+
+            public void HandleData(Packet packet)
+            {
+                int packetLength = packet.ReadInt();
+                byte[] packetBytes = packet.ReadBytes(packetLength);
+                ThreadManager.ExecuteOnMainThread(() => {
+                    using (Packet packet = new Packet(packetBytes))
+                    {
+                        int packetId = packet.ReadInt();
+                        Server.packetHandelers[packetId](id, packet);
+                    }
+                });
+            }
         }
         public class TCP
         {

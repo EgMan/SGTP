@@ -15,10 +15,11 @@ namespace Client
         public static Client instance;
         public static int dataBufferSize = 4096;
 
-        public string ip = "127.0.0.1";
-        public int port = 12321;
+        public string serverIP = "127.0.0.1";
+        public int serverPort = 12321;
         public int myId = 0;
         public TCP tcp;
+        public UDP udp;
 
         private delegate void PacketHandeler(Packet packet);
         private static Dictionary<int, PacketHandeler> packetHandelers;
@@ -39,12 +40,13 @@ namespace Client
         private void Start()
         {
             tcp = new TCP();
+            udp = new UDP();
         }
 
         public void ConnectToServer()
         {
 
-            Debug.Log($"Attempting to connect to {instance.ip}/{instance.port}...");
+            Debug.Log($"Attempting to connect to {instance.serverIP}/{instance.serverPort}...");
             RegisterPacketHandelers();
             tcp.Connect();
         }
@@ -52,13 +54,89 @@ namespace Client
         {
             packetHandelers = new Dictionary<int, PacketHandeler>()
             {
-                {(int)ServerPackets.welcome, ClientPacketHandeler.Welcome}
+                {(int)ServerPackets.welcome, ClientPacketHandeler.Welcome},
+                {(int)ServerPackets.udpTest, ClientPacketHandeler.UDPTest},
             };
+        }
+
+        public class UDP
+        {
+            public UdpClient socket;
+            public IPEndPoint endPoint;
+
+            public UDP()
+            {
+                endPoint = new IPEndPoint(IPAddress.Parse(instance.serverIP), instance.serverPort);
+            }
+
+            public void Connect(int localPort)
+            {
+                socket = new UdpClient(localPort);
+                socket.Connect(endPoint);
+                socket.BeginReceive(OnReceiveData, null);
+
+                using (Packet packet = new Packet())
+                {
+                    SendData(packet);
+                }
+            }
+
+            public void SendData(Packet packet)
+            {
+                try
+                {
+                    packet.InsertInt(instance.myId);
+
+                    if (socket != null)
+                    {
+                        socket.BeginSend(packet.ToArray(), packet.Length(), null, null);
+                    }
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError($"Error sending data to server via UDP: {e}");
+                }
+            }
+            private void OnReceiveData(IAsyncResult result)
+            {
+                try
+                {
+                    byte[] data = socket.EndReceive(result, ref endPoint);
+                    socket.BeginReceive(OnReceiveData, null);
+
+                    if (data.Length < 4)
+                    {
+                        // todo this could potentially could cause problems under high traffic conditions
+                        return;
+                    }
+                    HandleData(data);
+                }
+                catch (Exception e)
+                {
+                    Debug.Log($"Error receiving UDP data: {e}");
+                }
+            }
+            private void HandleData(byte[] data)
+            {
+                using (Packet packet = new Packet(data))
+                {
+                    int packetLength = packet.ReadInt();
+                    data = packet.ReadBytes(packetLength);
+                }
+
+                ThreadManager.ExecuteOnMainThread(() => {
+                    using (Packet packet = new Packet(data))
+                    {
+                        int packetId = packet.ReadInt();
+                        packetHandelers[packetId](packet);
+                    }
+                });
+            }
         }
 
         public class TCP
         {
-            TcpClient socket;
+            public TcpClient socket;
             private NetworkStream stream;
             private byte[] receiveBuffer;
             private Packet receivedData;
@@ -72,7 +150,7 @@ namespace Client
                 };
 
                 receiveBuffer = new byte[dataBufferSize];
-                socket.BeginConnect(instance.ip, instance.port, OnTCPConnect, socket);
+                socket.BeginConnect(instance.serverIP, instance.serverPort, OnConnect, socket);
             }
 
             public void SendData(Packet packet)
@@ -86,11 +164,11 @@ namespace Client
                 }
                 catch (Exception e)
                 {
-                    Debug.LogError($"Error sending data to server: {e}");
+                    Debug.LogError($"Error sending data to server via TCP: {e}");
                 }
             }
 
-            private void OnTCPConnect(IAsyncResult result)
+            private void OnConnect(IAsyncResult result)
             {
                 socket.EndConnect(result);
 
@@ -99,16 +177,16 @@ namespace Client
                     return;
                 }
 
-                Debug.Log($"Succesfully connected to {instance.ip}/{instance.port}");
+                Debug.Log($"Succesfully connected to {instance.serverIP}/{instance.serverPort}");
 
                 stream = socket.GetStream();
 
                 receivedData = new Packet();
 
-                stream.BeginRead(receiveBuffer, 0, dataBufferSize, OnTCPReceive, null);
+                stream.BeginRead(receiveBuffer, 0, dataBufferSize, OnReceiveData, null);
             }
 
-            private void OnTCPReceive(IAsyncResult result)
+            private void OnReceiveData(IAsyncResult result)
             {
                 try
                 {
@@ -123,7 +201,7 @@ namespace Client
                     Array.Copy(receiveBuffer, data, byteLength);
 
                     receivedData.Reset(HandleData(data));
-                    stream.BeginRead(receiveBuffer, 0, dataBufferSize, OnTCPReceive, null);
+                    stream.BeginRead(receiveBuffer, 0, dataBufferSize, OnReceiveData, null);
                 }
                 catch (Exception e)
                 {

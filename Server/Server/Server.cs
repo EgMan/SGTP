@@ -17,7 +17,8 @@ namespace Server
         public delegate void PacketHandeler(int fromClient, Packet packet);
         public static Dictionary<int, PacketHandeler> packetHandelers;
 
-        private static TcpListener listener;
+        private static TcpListener TCPlistener;
+        private static UdpClient UDPlistener;
 
         public static void Start(int _maxPlayers, int _port)
         {
@@ -27,17 +28,72 @@ namespace Server
             Console.WriteLine("Starting server...");
             Server.InitData();
 
-            listener = new TcpListener(IPAddress.Any, port);
-            listener.Start();
-            listener.BeginAcceptTcpClient(new AsyncCallback(OnTCPConnect), null);
+            TCPlistener = new TcpListener(IPAddress.Any, port);
+            TCPlistener.Start();
+            TCPlistener.BeginAcceptTcpClient(new AsyncCallback(OnTCPConnect), null);
+
+            UDPlistener = new UdpClient(port);
+            UDPlistener.BeginReceive(OnUDPReceive, null);
 
             Console.WriteLine($"Server started.  Listening on port {port}");
         }
 
+        private static void OnUDPReceive(IAsyncResult result)
+        {
+            try
+            {
+                IPEndPoint clientEndPoint = new IPEndPoint(IPAddress.Any, 0);
+                byte[] data = UDPlistener.EndReceive(result, ref clientEndPoint);
+                UDPlistener.BeginReceive(OnUDPReceive, null);
+                if (data.Length < 4)
+                {
+                    // todo this could potentially could cause problems under high traffic conditions
+                    return;
+                }
+                using (Packet packet = new Packet(data))
+                {
+                    int clientId = packet.ReadInt();
+                    if (clientId == 0) return;
+
+                    // if this connection is new, start session
+                    if (clients[clientId].udp.endPoint == null)
+                    {
+                        clients[clientId].udp.Connect(clientEndPoint);
+                        return;
+                    }
+
+                    // todo additional security might be needed to prevent ip spoofing attack
+                    if (clients[clientId].udp.endPoint.ToString() == clientEndPoint.ToString())
+                    {
+                        clients[clientId].udp.HandleData(packet);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Error receiving UDP data: {e}");
+            }
+        }
+
+        public static void SendUDPData(IPEndPoint clientEndPoint, Packet packet)
+        {
+            try
+            {
+                if (clientEndPoint != null)
+                {
+                    UDPlistener.BeginSend(packet.ToArray(), packet.Length(), clientEndPoint, null, null);
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Error sending UDP data: {e}");
+            }
+        }
+
         private static void OnTCPConnect(IAsyncResult result)
         {
-            TcpClient client = listener.EndAcceptTcpClient(result);
-            listener.BeginAcceptTcpClient(new AsyncCallback(OnTCPConnect), null);
+            TcpClient client = TCPlistener.EndAcceptTcpClient(result);
+            TCPlistener.BeginAcceptTcpClient(new AsyncCallback(OnTCPConnect), null);
 
             Console.WriteLine($"{client.Client.RemoteEndPoint} is attempting to connect.");
             for (int i = 1; i <= maxPlayers; i++)
@@ -60,7 +116,8 @@ namespace Server
             }
             packetHandelers = new Dictionary<int, PacketHandeler>()
             {
-                {(int)ClientPackets.welcomeReceived, ServerPacketHandeler.WelcomeRecieved}
+                {(int)ClientPackets.welcomeReceived, ServerPacketHandeler.WelcomeRecieved},
+                {(int)ClientPackets.udpTestAck, ServerPacketHandeler.UDPTestAck},
             };
         }
     }
