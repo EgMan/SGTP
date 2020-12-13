@@ -13,9 +13,11 @@ namespace Server
     {
         public static int maxPlayers { get; private set; }
         public static int port { get; private set; }
-        private static TcpListener listener;
-
         public static Dictionary<int, Client> clients = new Dictionary<int, Client>();
+        public delegate void PacketHandeler(int fromClient, Packet packet);
+        public static Dictionary<int, PacketHandeler> packetHandelers;
+
+        private static TcpListener listener;
 
         public static void Start(int _maxPlayers, int _port)
         {
@@ -50,12 +52,16 @@ namespace Server
             Console.WriteLine($"{client.Client.RemoteEndPoint} failed to connect: Server at capacity");
         }
 
-        public static void InitData()
+        private static void InitData()
         {
             for (int i = 1; i <= maxPlayers; i++)
             {
                 clients.Add(i, new Client(i));
             }
+            packetHandelers = new Dictionary<int, PacketHandeler>()
+            {
+                {(int)ClientPackets.welcomeReceived, ServerPacketHandeler.WelcomeRecieved}
+            };
         }
     }
 }
