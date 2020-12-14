@@ -105,6 +105,7 @@ namespace Server
                     return;
                 }
             }
+            // ServerPacketSender.ClientReject(client, "Server at capacity");
             Console.WriteLine($"{client.Client.RemoteEndPoint} failed to connect: Server at capacity");
         }
 
@@ -116,8 +117,8 @@ namespace Server
             }
             packetHandelers = new Dictionary<int, PacketHandeler>()
             {
-                {(int)ClientPackets.welcomeReceived, ServerPacketHandeler.WelcomeRecieved},
-                {(int)ClientPackets.udpTestAck, ServerPacketHandeler.UDPTestAck},
+                {(int)MessageSpecification.ClientPackets.REGISTER, ServerPacketHandeler.Register},
+                //{(int)ClientPackets.udpTestAck, ServerPacketHandeler.UDPTestAck},
             };
         }
     }

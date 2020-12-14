@@ -38,7 +38,7 @@ namespace Server
             {
                 this.endPoint = endPoint;
 
-                ServerPacketSender.UDPTest(id);
+                //ServerPacketSender.UDPTest(id);
             }
 
             public void SendData(Packet packet)
@@ -53,8 +53,8 @@ namespace Server
                 ThreadManager.ExecuteOnMainThread(() => {
                     using (Packet packet = new Packet(packetBytes))
                     {
-                        int packetId = packet.ReadInt();
-                        Server.packetHandelers[packetId](id, packet);
+                        int messageType = packet.ReadInt();
+                        Server.packetHandelers[messageType](id, packet);
                     }
                 });
             }
@@ -84,7 +84,7 @@ namespace Server
 
                 receivedData = new Packet();
 
-                ServerPacketSender.Welcome(id, "Connection successful");
+                ServerPacketSender.ClientAccept(id, "Connection successful");
             }
 
             public void SendData(Packet packet)
@@ -146,8 +146,8 @@ namespace Server
                     {
                         using (Packet packet = new Packet(packetBytes))
                         {
-                            int id = packet.ReadInt();
-                            Server.packetHandelers[id](id, packet);
+                            int messageType = packet.ReadInt();
+                            Server.packetHandelers[messageType](id, packet);
                         }
                     });
                     packetLength = 0;

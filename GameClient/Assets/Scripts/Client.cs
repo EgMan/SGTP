@@ -54,8 +54,13 @@ namespace Client
         {
             packetHandelers = new Dictionary<int, PacketHandeler>()
             {
-                {(int)ServerPackets.welcome, ClientPacketHandeler.Welcome},
-                {(int)ServerPackets.udpTest, ClientPacketHandeler.UDPTest},
+                {(int)MessageSpecification.ServerPackets.CLIENT_ACCEPT, ClientPacketHandeler.ClientAccept},
+                {(int)MessageSpecification.ServerPackets.CLIENT_REJECT, ClientPacketHandeler.ClientReject},
+                {(int)MessageSpecification.ServerPackets.STATE, ClientPacketHandeler.State},
+                {(int)MessageSpecification.ServerPackets.ACTION_ACK, ClientPacketHandeler.ActionAck},
+                {(int)MessageSpecification.ServerPackets.ERROR, ClientPacketHandeler.Error},
+                {(int)MessageSpecification.ServerPackets.FIN, ClientPacketHandeler.Fin},
+                //{(int)ServerPackets.udpTest, ClientPacketHandeler.UDPTest},
             };
         }
 

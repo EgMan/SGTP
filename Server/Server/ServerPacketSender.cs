@@ -3,12 +3,75 @@
 // https://tomweiland.net/networking-tutorial-server-client-connection/
 using System;
 using System.Collections.Generic;
-using System.Text;
+using System.Net.Sockets;
 
 namespace Server
 {
     class ServerPacketSender
     {
+
+        public static void ClientAccept(int client, string msg)
+        {
+            using (Packet packet = new Packet((int)MessageSpecification.ServerPackets.CLIENT_ACCEPT))
+            {
+                packet.Write(msg);
+                packet.Write(client);
+
+                TCPSendData(client, packet);
+            }
+        }
+
+        public static void ClientReject(TcpClient client, string msg)
+        {
+            using (Packet packet = new Packet((int)MessageSpecification.ServerPackets.CLIENT_REJECT))
+            {
+                packet.Write(msg);
+                client.GetStream().BeginWrite(packet.ToArray(), 0, packet.Length(), null, null);
+            }
+        }
+
+        public static void State(int client, string msg)
+        {
+            using (Packet packet = new Packet((int)MessageSpecification.ServerPackets.STATE))
+            {
+                packet.Write(msg);
+
+                TCPSendData(client, packet);
+            }
+        }
+
+        public static void Error(int client, string msg)
+        {
+            using (Packet packet = new Packet((int)MessageSpecification.ServerPackets.ERROR))
+            {
+                packet.Write(msg);
+
+                TCPSendData(client, packet);
+            }
+        }
+
+        public static void Fin(int client, string msg)
+        {
+            using (Packet packet = new Packet((int)MessageSpecification.ServerPackets.FIN))
+            {
+                packet.Write(msg);
+
+                TCPSendData(client, packet);
+            }
+        }
+
+        /*
+        public static void UDPTest(int client)
+        {
+            using (Packet packet = new Packet((int)ServerPackets.udpTest))
+            {
+                packet.Write("This is a test!!!!!!!!!!!!!!!!!");
+
+                UDPSendData(client, packet);
+            }
+        }
+        */
+
         #region UDP Helpers
         private static void UDPSendData(int client, Packet packet)
         {
@@ -47,26 +110,6 @@ namespace Server
                 client.tcp.SendData(packet);
             }
         }
-        #endregion
-
-        public static void Welcome(int client, string msg)
-        {
-            using (Packet packet = new Packet((int)ServerPackets.welcome))
-            {
-                packet.Write(msg);
-                packet.Write(client);
-
-                TCPSendData(client, packet);
-            }
-        }
-        public static void UDPTest(int client)
-        {
-            using (Packet packet = new Packet((int)ServerPackets.udpTest))
-            {
-                packet.Write("This is a test!!!!!!!!!!!!!!!!!");
-
-                UDPSendData(client, packet);
-            }
-        }
+    #endregion
     }
 }
